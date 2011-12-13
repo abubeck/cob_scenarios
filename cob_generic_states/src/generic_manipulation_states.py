@@ -384,8 +384,8 @@ class open_door(smach.State):
 		door_handle_pose_bl.header.stamp = rospy.Time.now()
 		door_handle_pose_bl.header.frame_id = "/base_link"
 		door_handle_pose_bl.pose.position.x = object_pose_bl.pose.position.x+0.06 #+0.05
-		door_handle_pose_bl.pose.position.y = object_pose_bl.pose.position.y+0.15
-		door_handle_pose_bl.pose.position.z = object_pose_bl.pose.position.z-0.04 #-0.08
+		door_handle_pose_bl.pose.position.y = object_pose_bl.pose.position.y-0.18
+		door_handle_pose_bl.pose.position.z = object_pose_bl.pose.position.z+0.02 #-0.08
 		door_handle_pose_bl.pose.orientation.x = -0.495
 		door_handle_pose_bl.pose.orientation.y = -0.532
 		door_handle_pose_bl.pose.orientation.z = 0.452
