@@ -69,7 +69,7 @@ sss = simple_script_server()
 import tf
 from kinematics_msgs.srv import *
 
-#this should be in manipulation_msgs
+# TODO: this should be in manipulation_msgs
 from cob_mmcontroller.msg import *
 
 
@@ -113,7 +113,7 @@ class grasp_side(smach.State):
 	def __init__(self, max_retries = 1):
 		smach.State.__init__(
 			self,
-			outcomes=['succeeded', 'retry', 'no_more_retries', 'failed'],
+			outcomes=['succeeded', 'no_ik_solution', 'no_more_retries', 'failed'],
 			input_keys=['object'])
 		
 		self.max_retries = max_retries
@@ -137,6 +137,9 @@ class grasp_side(smach.State):
 		# check if maximum retries reached
 		if self.retries > self.max_retries:
 			self.retries = 0
+			handle_torso = sss.move("torso","home",False)
+			handle_torso.wait()
+			handle_arm = sss.move("arm","look_at_table-to-folded",False)
 			return 'no_more_retries'
 	
 		# make arm soft TODO: handle stiffness for schunk arm
@@ -159,9 +162,9 @@ class grasp_side(smach.State):
 		object_pose_bl.pose.orientation.w = new_w
 
 		# FIXME: this is calibration between camera and hand and should be removed from scripting level
-		object_pose_bl.pose.position.x = object_pose_bl.pose.position.x #- 0.06 #- 0.08
-		object_pose_bl.pose.position.y = object_pose_bl.pose.position.y #- 0.05
-		object_pose_bl.pose.position.z = object_pose_bl.pose.position.z  #- 0.1
+		#object_pose_bl.pose.position.x = object_pose_bl.pose.position.x #- 0.06 #- 0.08
+		#object_pose_bl.pose.position.y = object_pose_bl.pose.position.y #- 0.05
+		object_pose_bl.pose.position.z = object_pose_bl.pose.position.z + 0.1
 		
 		# calculate pre and post grasp positions
 		pre_grasp_bl = PoseStamped()
@@ -181,25 +184,25 @@ class grasp_side(smach.State):
 		if(error_code.val != error_code.SUCCESS):
 			rospy.logerr("Ik pre_grasp Failed")
 			self.retries += 1
-			return 'retry'
+			return 'no_ik_solution'
 		
 		# calculate ik solutions for grasp configuration
 		(grasp_conf, error_code) = self.callIKSolver(pre_grasp_conf, object_pose_bl)
 		if(error_code.val != error_code.SUCCESS):
 			rospy.logerr("Ik grasp Failed")
 			self.retries += 1
-			return 'retry'
+			return 'no_ik_solution'
 		
 		# calculate ik solutions for pre grasp configuration
 		(post_grasp_conf, error_code) = self.callIKSolver(grasp_conf, post_grasp_bl)
 		if(error_code.val != error_code.SUCCESS):
 			rospy.logerr("Ik post_grasp Failed")
 			self.retries += 1
-			return 'retry'	
+			return 'no_ik_solution'	
 
 		# execute grasp
 		sss.say(["I am grasping the " + userdata.object.label + " now."],False)
-		sss.move("torso","home")
+		sss.move("torso","front")
 		handle_arm = sss.move("arm", [pre_grasp_conf , grasp_conf],False)
 		sss.move("sdh", "cylopen")
 		handle_arm.wait()
@@ -221,7 +224,7 @@ class grasp_top(smach.State):
 	def __init__(self, max_retries = 1):
 		smach.State.__init__(
 			self,
-			outcomes=['succeeded', 'retry', 'no_more_retries', 'failed'],
+			outcomes=['succeeded', 'no_ik_solution', 'no_more_retries', 'failed'],
 			input_keys=['object'])
 		
 		self.max_retries = max_retries
@@ -245,6 +248,9 @@ class grasp_top(smach.State):
 		# check if maximum retries reached
 		if self.retries > self.max_retries:
 			self.retries = 0
+			handle_torso = sss.move("torso","home",False)
+			handle_torso.wait()
+			handle_arm = sss.move("arm","look_at_table-to-folded",False)
 			return 'no_more_retries'
 	
 		# make arm soft TODO: handle stiffness for schunk arm
@@ -288,21 +294,21 @@ class grasp_top(smach.State):
 		if(error_code.val != error_code.SUCCESS):
 			rospy.logerr("Ik pre_grasp Failed")
 			self.retries += 1
-			return 'retry'
+			return 'no_ik_solution'
 		
 		# calculate ik solutions for grasp configuration
 		(grasp_conf, error_code) = self.callIKSolver(pre_grasp_conf, object_pose_bl)
 		if(error_code.val != error_code.SUCCESS):
 			rospy.logerr("Ik grasp Failed")
 			self.retries += 1
-			return 'retry'
+			return 'no_ik_solution'
 		
 		# calculate ik solutions for pre grasp configuration
 		(post_grasp_conf, error_code) = self.callIKSolver(grasp_conf, post_grasp_bl)
 		if(error_code.val != error_code.SUCCESS):
 			rospy.logerr("Ik post_grasp Failed")
 			self.retries += 1
-			return 'retry'	
+			return 'no_ik_solution'	
 
 		# execute grasp
 		sss.say(["I am grasping the " + userdata.object.label + " now."],False)
@@ -328,7 +334,7 @@ class open_door(smach.State):
 	def __init__(self, max_retries = 1):
 		smach.State.__init__(
 			self,
-			outcomes=['succeeded', 'retry', 'no_more_retries', 'failed'],
+			outcomes=['succeeded', 'no_ik_solution', 'no_more_retries', 'failed'],
 			input_keys=['object'])
 
 		self.max_retries = max_retries
@@ -414,14 +420,14 @@ class open_door(smach.State):
 		if(error_code.val != error_code.SUCCESS):
 			rospy.logerr("Ik pre_door_conf Failed")
 			self.retries += 1
-			return 'retry'
+			return 'no_ik_solution'
 
 		# calculate ik solutions for door configuration
 		(door_conf, error_code) = self.callIKSolver(arm_pre_grasp[0], door_handle_pose_bl)
 		if(error_code.val != error_code.SUCCESS):
 			rospy.logerr("Ik door_conf Failed")
 			self.retries += 1
-			return 'retry'
+			return 'no_ik_solution'
 		
 		# move arm to handle
 		sss.move("tray","up",False)
@@ -527,6 +533,35 @@ class put_object_on_tray_top(smach.State):
 		
 		# move arm to backside again
 		handle_arm = sss.move("arm","tray_top-to-folded",False)
+		sss.sleep(3)
+		sss.move("sdh","home",False)
+		handle_arm.wait()
+		return 'succeeded'
+
+
+## Put object on table state for side grasps
+#
+# This state puts a side grasped object on a table, assuming that the robot is already in front of the table
+class put_object_on_table(smach.State):
+
+	def __init__(self):
+		smach.State.__init__(
+			self,
+			outcomes=['succeeded', 'failed'],
+			input_keys=['object_target_pose'])
+
+	def execute(self, userdata):
+		# TODO: for placing the object the wrench information from the arm could be used to determine the placing height exactly
+		# TODO: tke into account the current grasping configuration and use this for releasing the object on the table. FIXME: At the moment only a fixed position is used
+
+		# move object to release position
+		sss.move("arm","pregrasp")
+
+		# release object
+		sss.move("sdh","cylopen")
+
+		# move arm to backside again
+		handle_arm = sss.move("arm",["hold","folded"],False)
 		sss.sleep(3)
 		sss.move("sdh","home",False)
 		handle_arm.wait()
